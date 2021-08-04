@@ -1,4 +1,3 @@
-from api import TrafikverketAPI
 import questionary
 import requests
 import coloredlogs
@@ -6,6 +5,11 @@ import logging
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import questionary
 from tqdm import tqdm
+from time import sleep
+import json
+
+from api import TrafikverketAPI
+import helpers
 
 # Disable insecure request warnings
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -46,7 +50,7 @@ COOKIES = {'forarprov-ext':'ffffffff0914194145525d5f4f58455e445a4a423660',
 USERAGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246'
 
 PROXY: str = questionary.select(
-    'Select request proxy: ', choices=["None", "Fiddler", "TOR"]).ask()
+    'Select request proxy:', choices=["None", "Fiddler", "TOR"]).ask()
 
 # Set proxy for requests library
 if PROXY == "None":
@@ -65,16 +69,47 @@ elif PROXY == 'TOR':
         "https": 'socks5h://localhost:9050',
     }
 
+EXAMINATION_DICT = {'Kunskapsprov':3, 'Körprov':12}
+
+EXAMINATION_TYPE: str = questionary.select(
+    'Select exam type:', choices=["Kunskapsprov", "Körprov"]).ask()
+
+# Predefined location ids to search
+valid_location_ids = [1000001,1000003,1000004,1000005,1000006,1000007,1000008,1000009,1000010,1000011,1000012,1000015,1000019,1000020,1000021,1000022,1000027,1000028,1000029,1000030,1000031,1000035,1000036,1000037,1000038,1000039,1000040,1000041,1000044,1000045,1000046,1000047,1000048,1000053,1000055,1000056,1000057,1000059,1000060,1000061,1000062,1000063,1000064,1000065,1000066,1000067,1000068,1000069,1000070,1000071,1000072,1000074,1000075,1000076,1000077,1000078,1000082,1000083,1000084,1000085,1000086,1000087,1000088,1000089,1000090,1000091,1000092,1000093,1000094,1000095,1000096,1000097,1000098,1000099,1000100,1000101,1000102,1000103,1000104,1000105,1000106,1000107,1000108,1000109,1000111,1000112,1000114,1000115,1000116,1000118,1000119,1000120,1000121,1000122,1000123,1000124,1000126,1000127,1000129,1000130,1000132,1000134,1000135,1000137,1000139,1000143,1000145,1000149,1000317,1000318,1000321,1000322,1000325,1000326,1000327,1000328,1000329,1000330]
+
 # Load class into object
-trafikverket_api = TrafikverketAPI(cookies=COOKIES, useragent=USERAGENT, proxy=PROXY, SSN='20020214-1891')
+trafikverket_api = TrafikverketAPI(cookies=COOKIES, useragent=USERAGENT, proxy=PROXY, SSN='20020214-1891', examination_type_id=EXAMINATION_DICT[EXAMINATION_TYPE])
 
 available_rides_list = []
+stringified_list = []
 
-# Get server response
-for i in tqdm(range(1000000,1000200)):
-    try:
-        available_rides_list.extend(trafikverket_api.get_available_dates(i, extended_information=True))
-    except:
-        logger.error(f'Error on location ID: {i}')
+while 1:
+    # Sync local ride info with server
+    for location_id in tqdm(valid_location_ids,desc='Downloading available locations', unit='id', leave=False):
+        for _ in range(10):
+            try:
+                available_rides_list.extend(trafikverket_api.get_available_dates(location_id, extended_information=True))
+                break
+            except Exception as e:
+                pass
+            sleep(2)
+        else:
+            logger.exception(f'Unexpected error occurred with location id: {location_id}')
 
-print(available_rides_list)
+    # logger.info(f'Found {len(available_rides_list)} rides in total')
+
+    # See if available rides have changed since previous sync
+    new_stringified_list = helpers.stringify_list(available_rides_list)
+    removed_rides = helpers.dictify_list(list(set(stringified_list) - set(new_stringified_list)))
+    added_rides = helpers.dictify_list(list(set(new_stringified_list) - set(stringified_list)))
+    stringified_list = new_stringified_list
+
+    # Print server client diff
+    for ride in added_rides:
+        # Example: "Added: Kunskapsprov B, 2022-01-07 11:15 in Örebro for 325kr"
+        logger.info(f'\033[92mAdded: {ride["occasions"][0]["name"]}, {ride["occasions"][0]["date"]} {ride["occasions"][0]["time"]} in {ride["occasions"][0]["locationName"]} for {ride["occasions"][0]["cost"]}\033[0m')
+    for ride in removed_rides:
+        # Example: "Removed: Kunskapsprov B, 2022-01-07 11:15 in Örebro for 325kr"
+        logger.info(f'\033[91mRemoved: {ride["occasions"][0]["name"]}, {ride["occasions"][0]["date"]} {ride["occasions"][0]["time"]} in {ride["occasions"][0]["locationName"]} for {ride["occasions"][0]["cost"]}\033[0m')
+
+    sleep(60*1)

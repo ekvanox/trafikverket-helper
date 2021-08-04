@@ -28,7 +28,7 @@ class TrafikverketAPI:
         params['occasionBundleQuery']['locationId'] = location_id
 
         # Send request to server
-        r = self.session.post(url='https://fp.trafikverket.se/Boka/occasion-bundles',json=params, verify=False,proxies=self.proxy)
+        r = self.session.post(url='https://fp.trafikverket.se/Boka/occasion-bundles', json=params, verify=False, proxies=self.proxy)
 
         # Handle response
         if r.status_code == 200 and (response_data:=r.json())['status'] == 200:
