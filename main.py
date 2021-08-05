@@ -1,3 +1,4 @@
+import duallog
 import questionary
 import requests
 import coloredlogs
@@ -6,7 +7,6 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import questionary
 from tqdm import tqdm
 from time import sleep
-import json
 
 from api import TrafikverketAPI
 import helpers
@@ -14,14 +14,14 @@ import helpers
 # Disable insecure request warnings
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
-logger = logging.getLogger()
-logger.disabled = True
-logger = logging.getLogger(__name__)
 
 # Setup logging
+duallog.setup('log')    # Write logs to log directory
+logger = logging.getLogger(__name__)
+
 coloredlogs.install(
     level=20,
-    fmt="[%(levelname)s] %(asctime)s: %(message)s",
+    fmt="[%(filename)s][%(levelname)s] %(asctime)s: %(message)s",
     level_styles={
         "critical": {"bold": True, "color": "red"},
         "debug": {"color": "green"},
@@ -38,6 +38,7 @@ coloredlogs.install(
         "asctime": {"color": "cyan"},
         "levelname": {"bold": True, "color": "black"},
     },
+    isatty=True,
 )
 
 COOKIES = {'forarprov-ext':'ffffffff0914194145525d5f4f58455e445a4a423660',
@@ -81,35 +82,36 @@ valid_location_ids = [1000001,1000003,1000004,1000005,1000006,1000007,1000008,10
 trafikverket_api = TrafikverketAPI(cookies=COOKIES, useragent=USERAGENT, proxy=PROXY, SSN='20020214-1891', examination_type_id=EXAMINATION_DICT[EXAMINATION_TYPE])
 
 available_rides_list = []
-stringified_list = []
+stringified_list = set([])
 
 while 1:
     # Sync local ride info with server
     for location_id in tqdm(valid_location_ids,desc='Downloading available locations', unit='id', leave=False):
         for _ in range(10):
             try:
-                available_rides_list.extend(trafikverket_api.get_available_dates(location_id, extended_information=True))
+                available_rides_list.extend(helpers.strip_useless_info(trafikverket_api.get_available_dates(location_id, extended_information=True)))
                 break
             except Exception as e:
+                error = e
                 pass
             sleep(2)
         else:
-            logger.exception(f'Unexpected error occurred with location id: {location_id}')
+            logger.error(f'Unfixable error occurred with location id: {location_id}\n{error}')
 
     # logger.info(f'Found {len(available_rides_list)} rides in total')
 
     # See if available rides have changed since previous sync
-    new_stringified_list = helpers.stringify_list(available_rides_list)
-    removed_rides = helpers.dictify_list(list(set(stringified_list) - set(new_stringified_list)))
-    added_rides = helpers.dictify_list(list(set(new_stringified_list) - set(stringified_list)))
+    new_stringified_list = set(helpers.stringify_list(available_rides_list))
+    removed_rides = helpers.dictify_list(list(stringified_list - new_stringified_list))
+    added_rides = helpers.dictify_list(list(new_stringified_list - stringified_list))
     stringified_list = new_stringified_list
 
     # Print server client diff
     for ride in added_rides:
         # Example: "[Added] Kunskapsprov B, 2022-01-07 11:15 in Örebro for 325kr"
-        logger.info(f'\033[92m[Added] {ride["occasions"][0]["name"]}, {ride["occasions"][0]["date"]} {ride["occasions"][0]["time"]} in {ride["occasions"][0]["locationName"]} for {ride["occasions"][0]["cost"]}\033[0m')
+        logger.info(f'\033[92m[Added] {ride["name"]}, {ride["date"]} {ride["time"]} in {ride["location"]} for {ride["cost"]}\033[0m')
     for ride in removed_rides:
         # Example: "[Removed] Kunskapsprov B, 2022-01-07 11:15 in Örebro for 325kr"
-        logger.info(f'\033[91m[Removed] {ride["occasions"][0]["name"]}, {ride["occasions"][0]["date"]} {ride["occasions"][0]["time"]} in {ride["occasions"][0]["locationName"]} for {ride["occasions"][0]["cost"]}\033[0m')
+        logger.info(f'\033[91m[Removed] {ride["name"]}, {ride["date"]} {ride["time"]} in {ride["location"]} for {ride["cost"]}\033[0m')
 
     sleep(60*1)
