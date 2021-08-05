@@ -6,7 +6,7 @@ import logging
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import questionary
 from tqdm import tqdm
-from time import sleep
+from time import sleep, time
 
 from api import TrafikverketAPI
 import helpers
@@ -49,6 +49,7 @@ COOKIES = {'forarprov-ext':'ffffffff0914194145525d5f4f58455e445a4a423660',
 'LoginValid':'2021-08-03 16:27',
 'FpsExternalIdentity':'D47D328756636AD23417312798AF4DAAA4073268D3710322FDF5143B31B59335719929C80521F1A8EE989AB51D9BC53C4D343F25A0FCDE2AE73BA2C3463CBDFE4A22B3D5A26599C7237010B41301418A38A7FAD2932548EF11B102B04BBD73A6300A1A15FCE90D5B09F60D7493B39E828A5D4CFAEDF873AD038E5A9D0F5B7A2680E8C49699E4BB63E8D739BFAE2F163E11D94761E79815604A3929AAE31FD5F0C9C035D7645D80223314B536DBDD4167EF2440DF0BDA8F600BA20B5653D09BDBC85C50155FF5565C210CF51FC220FEA1E75D27763C9512704F9147919AD56AAA19CDD8362DC33EC09C20CC195E9B8E64B36FB6D08D0AD4BB30F1EF04AA0E557E0F961E4330EE104C09760FCA95AA1C5FCBF43CA8F88B29649CD912A2AF44DF59D60561B28360AC4060FF97121DEF61C107581EC3158A851646B842F3D827A19ED3B75DB2503B3DB3D82065EA8D64DA3A80F604691AA7C9ADE7EB5DC19817AF14241F8F042F2FFE2B242D1F88595E3C7D057FFB832371052D677D5363B6272E226E2A8F94D4B419732CF25DFAFA67784A9C67DBF9B3C54E36DFE4E530D0E01715F131586BBBF3CDCD261D1CF3406E62BA'}
 USERAGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246'
+SLEEP_TIME = 60
 
 PROXY: str = questionary.select(
     'Select request proxy:', choices=["None", "Fiddler", "TOR"]).ask()
@@ -81,12 +82,14 @@ valid_location_ids = [1000001,1000003,1000004,1000005,1000006,1000007,1000008,10
 # Load class into object
 trafikverket_api = TrafikverketAPI(cookies=COOKIES, useragent=USERAGENT, proxy=PROXY, SSN='20020214-1891', examination_type_id=EXAMINATION_DICT[EXAMINATION_TYPE])
 
-available_rides_list = []
-stringified_list = set([])
+old_stringified_list = set([])
 
 while 1:
+    # Reset variables
+    available_rides_list = []
+
     # Sync local ride info with server
-    for location_id in tqdm(valid_location_ids,desc='Downloading available locations', unit='id', leave=False):
+    for location_id in tqdm(valid_location_ids,desc='Updating available locations', unit='id', leave=False):
         for _ in range(10):
             try:
                 available_rides_list.extend(helpers.strip_useless_info(trafikverket_api.get_available_dates(location_id, extended_information=True)))
@@ -98,13 +101,16 @@ while 1:
         else:
             logger.error(f'Unfixable error occurred with location id: {location_id}\n{error}')
 
-    # logger.info(f'Found {len(available_rides_list)} rides in total')
+    # Update last check time
+    last_check_time = time()
 
     # See if available rides have changed since previous sync
+    helpers.inplace_print(f'Database size: {len(available_rides_list)} | Last check: {int(time()-last_check_time)}s ago')
     new_stringified_list = set(helpers.stringify_list(available_rides_list))
-    removed_rides = helpers.dictify_list(list(stringified_list - new_stringified_list))
-    added_rides = helpers.dictify_list(list(new_stringified_list - stringified_list))
-    stringified_list = new_stringified_list
+    added_rides = helpers.dictify_list(list(new_stringified_list - old_stringified_list))
+    removed_rides = helpers.dictify_list(list(old_stringified_list - new_stringified_list))
+    old_stringified_list = new_stringified_list
+    helpers.hide_print()
 
     # Print server client diff
     for ride in added_rides:
@@ -114,4 +120,8 @@ while 1:
         # Example: "[Removed] Kunskapsprov B, 2022-01-07 11:15 in Örebro for 325kr"
         logger.info(f'\033[91m[Removed] {ride["name"]}, {ride["date"]} {ride["time"]} in {ride["location"]} for {ride["cost"]}\033[0m')
 
-    sleep(60*1)
+    # Sleep between server request sessions
+    for i in range(SLEEP_TIME, 0, -1):
+        helpers.inplace_print(f'Database size: {len(available_rides_list)} | Next sync in: {i}s ')
+        sleep(1)
+    helpers.hide_print()
