@@ -106,10 +106,10 @@ while 1:
 
     # Print server client diff
     for ride in added_rides:
-        # Example: "Added: Kunskapsprov B, 2022-01-07 11:15 in Örebro for 325kr"
-        logger.info(f'\033[92mAdded: {ride["occasions"][0]["name"]}, {ride["occasions"][0]["date"]} {ride["occasions"][0]["time"]} in {ride["occasions"][0]["locationName"]} for {ride["occasions"][0]["cost"]}\033[0m')
+        # Example: "[Added] Kunskapsprov B, 2022-01-07 11:15 in Örebro for 325kr"
+        logger.info(f'\033[92m[Added] {ride["occasions"][0]["name"]}, {ride["occasions"][0]["date"]} {ride["occasions"][0]["time"]} in {ride["occasions"][0]["locationName"]} for {ride["occasions"][0]["cost"]}\033[0m')
     for ride in removed_rides:
-        # Example: "Removed: Kunskapsprov B, 2022-01-07 11:15 in Örebro for 325kr"
-        logger.info(f'\033[91mRemoved: {ride["occasions"][0]["name"]}, {ride["occasions"][0]["date"]} {ride["occasions"][0]["time"]} in {ride["occasions"][0]["locationName"]} for {ride["occasions"][0]["cost"]}\033[0m')
+        # Example: "[Removed] Kunskapsprov B, 2022-01-07 11:15 in Örebro for 325kr"
+        logger.info(f'\033[91m[Removed] {ride["occasions"][0]["name"]}, {ride["occasions"][0]["date"]} {ride["occasions"][0]["time"]} in {ride["occasions"][0]["locationName"]} for {ride["occasions"][0]["cost"]}\033[0m')
 
     sleep(60*1)
