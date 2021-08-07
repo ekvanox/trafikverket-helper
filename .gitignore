@@ -210,4 +210,7 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+# Logging directory
+/log
+
 # End of https://www.toptal.com/developers/gitignore/api/windows,visualstudiocode,python,jupyternotebooks,git
