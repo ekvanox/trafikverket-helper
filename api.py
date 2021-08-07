@@ -28,12 +28,11 @@ class TrafikverketAPI:
         params['occasionBundleQuery']['locationId'] = location_id
 
         # Send request to server
-        r = self.session.post(url='https://fp.trafikverket.se/Boka/occasion-bundles', json=params, verify=False, proxies=self.proxy)
+        r = self.session.post(url='https://fp.trafikverket.se/Boka/occasion-bundles', json=params, verify=False, proxies=self.proxy, timeout=60)
 
         # Handle response
         if r.status_code == 200 and (response_data:=r.json())['status'] == 200:
             # Extract data from response
-            months_searched = response_data['data']['searchedMonths']
             available_rides = response_data['data']['bundles']
             dates_found = [ride['occasions'][0]['date'] for ride in available_rides]
 

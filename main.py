@@ -42,18 +42,16 @@ coloredlogs.install(
 )
 
 
+# User selection
 PROXY: str = questionary.select(
     'Select request proxy:', choices=["None", "Fiddler", "TOR"]).ask()
-
-# Set proxy for requests library
-PROXY = constants.PROXY_SELECT[PROXY]
-
 EXAMINATION_TYPE: str = questionary.select(
     'Select exam type:', choices=["Kunskapsprov", "Körprov"]).ask()
-
 EXECUTION_MODE: str = questionary.select(
     'Select execution mode:', choices=["Sort by date", "Log server changes", "Start web server"]).ask()
 
+# Set proxy for requests library
+PROXY = constants.PROXY_SELECT[PROXY]
 
 # Load class into object
 trafikverket_api = TrafikverketAPI(cookies=constants.COOKIES, useragent=constants.USERAGENT, proxy=PROXY, SSN=constants.SSN, examination_type_id=constants.EXAMINATION_DICT[EXAMINATION_TYPE])
