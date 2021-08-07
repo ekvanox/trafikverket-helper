@@ -1,16 +1,16 @@
-import duallog
-import questionary
-import requests
-import coloredlogs
 import logging
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
-import questionary
-from tqdm import tqdm
 from time import sleep, time
 
-from api import TrafikverketAPI
+import duallog
+import requests
+import questionary
+import coloredlogs
+from tqdm import tqdm
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+
 import helpers
 import constants
+from api import TrafikverketAPI
 
 # Disable insecure request warnings
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
