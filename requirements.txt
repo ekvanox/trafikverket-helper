@@ -1,0 +1,5 @@
+requests==2.22.0
+coloredlogs==15.0
+duallog==0.20
+tqdm==4.58.0
+questionary==1.10.0
