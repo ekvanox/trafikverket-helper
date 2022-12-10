@@ -1,64 +1,51 @@
-import logging
+import json
 from time import sleep, time
 
-import duallog
-import discord
-import requests
 import questionary
-import coloredlogs
-from tqdm import tqdm
+import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
+from tqdm import tqdm
 
-import helpers
 import constants
 from api import TrafikverketAPI
+from helpers import helpers, io, output
 
 # Disable insecure request warnings
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
-# Setup logging
-duallog.setup('log')    # Write logs to log directory
-logger = logging.getLogger(__name__)
-
-coloredlogs.install(
-    level=20,
-    fmt="[%(filename)s][%(levelname)s] %(asctime)s: %(message)s",
-    level_styles={
-        "critical": {"bold": True, "color": "red"},
-        "debug": {"color": "green"},
-        "error": {"color": "red"},
-        "info": {"color": "white"},
-        "notice": {"color": "magenta"},
-        "spam": {"color": "green", "faint": True},
-        "success": {"bold": True, "color": "green"},
-        "verbose": {"color": "blue"},
-        "warning": {"color": "yellow"},
-    },
-    logger=logger,
-    field_styles={
-        "asctime": {"color": "cyan"},
-        "levelname": {"bold": True, "color": "black"},
-    },
-    isatty=True,
-)
+logger = output.create_logger(logging_dir='log')
 
 
 # User selection
-PROXY: str = questionary.select(
-    'Select request proxy:', choices=["None", "Fiddler", "TOR"]).ask()
 EXAMINATION_TYPE: str = questionary.select(
     'Select exam type:', choices=["Kunskapsprov", "Körprov"]).ask()
 EXECUTION_MODE: str = questionary.select(
     'Select execution mode:', choices=["Sort by date", "Log server changes", "Start web server"]).ask()
 
-DISCORD_TOKEN = "OTQ2NzMxNTM5MDgzOTgwODMw.Yhi-dA.GgqtD5rNlfPvV5B3-ZGePSEaZiE"
+CONFIG = io.load_config()
 
-# Set proxy for requests library
-PROXY = constants.PROXY_SELECT[PROXY]
+if 'proxy' in CONFIG:
+    proxy_config = CONFIG['proxy']
+    proxy = helpers.create_requests_proxy(
+        host=proxy_config['host'],
+        port=proxy_config['port'],
+        protocol=proxy_config.get('protocol', 'http'),
+    )
+else:
+    proxy: str = questionary.select(
+        'Select request proxy:', choices=["None", "Fiddler", "TOR"]).ask()
+
+    # Set proxy for requests library
+    proxy = constants.proxy_select[proxy]
 
 # Load class into object
-trafikverket_api = TrafikverketAPI(cookies=constants.COOKIES, useragent=constants.USERAGENT,
-                                   proxy=PROXY, SSN=constants.SSN, examination_type_id=constants.EXAMINATION_DICT[EXAMINATION_TYPE])
+trafikverket_api = TrafikverketAPI(
+    cookies=constants.cookies,
+    useragent=constants.useragent,
+    proxy=proxy,
+    ssn=CONFIG['swedish_ssn'],
+    examination_type_id=constants.examination_dict[EXAMINATION_TYPE],
+)
 
 # Select execution mode
 if EXECUTION_MODE == "Sort by date":
@@ -66,26 +53,48 @@ if EXECUTION_MODE == "Sort by date":
     available_rides_list = []
 
     # Sync local ride info with server
-    for location_id in tqdm(constants.VALID_LOCATION_IDS[EXAMINATION_TYPE], desc='Updating local database', unit='id', leave=False):
-        for _ in range(10):
+    for location_id in tqdm(
+        constants.valid_location_ids[EXAMINATION_TYPE],
+        desc='Updating local database',
+        unit='id',
+        leave=False,
+    ):
+        # Set the maximum number of attempts to retrieve the available rides
+        MAX_ATTEMPTS = 10
+        WAIT_TIME = 2
+
+        # Try to retrieve the available rides up to the maximum number of attempts
+        for attempt in range(MAX_ATTEMPTS):
             try:
-                available_rides_list.extend(helpers.strip_useless_info(
-                    trafikverket_api.get_available_dates(location_id, extended_information=True)))
+                # Get the available rides from the API
+                available_rides = helpers.strip_useless_info(
+                    trafikverket_api.get_available_dates(
+                        location_id,
+                        extended_information=True,
+                    )
+                )
+
+                # Add the available rides to the list
+                available_rides_list.extend(available_rides)
+
+                # Stop trying if the available rides were successfully retrieved
                 break
             except Exception as e:
-                error = e
-                pass
-            sleep(2)
-        else:
-            logger.error(
-                f'Unfixable error occurred with location id: {location_id}\n{error}')
+                logger.exception(
+                    'Unfixable error occurred with location id: %s\n%s', location_id, e
+                )
+                # Wait for the specified time before retrying
+                sleep(WAIT_TIME)
 
     # Sort by date
     for ride in sorted(available_rides_list, key=lambda x: (x['date'], x['time']), reverse=True):
         logger.info(
-            f'{ride["name"]}, {ride["date"]} {ride["time"]} in {ride["location"]} for {ride["cost"]}')
+            f'{ride["name"]}, {ride["date"]} {ride["time"]} in {ride["location"]} for {ride["cost"]}'
+        )
 
-    logger.info(f'Total: {len(available_rides_list)}')
+    logger.info(
+        f'Total: {len(available_rides_list)}'
+    )
 
 elif EXECUTION_MODE == "Log server changes":
     old_stringified_list = set([])
@@ -95,37 +104,29 @@ elif EXECUTION_MODE == "Log server changes":
             POLLING_FREQUENCY: int = int(questionary.text(
                 'Enter polling frequency:', default="60").ask())
             break
-        except:
-            logger.exception('Invalid input')
-
-    class DiscordClient(discord.Client):
-        async def on_ready(self):
-            print(f'Logged on as {self.user}!')
-
-        async def on_message(self, message):
-            print(f'Message from {message.author}: {message.content}')
-
-    client = DiscordClient()
-    client.run(DISCORD_TOKEN)
+        except Exception as e:
+            logger.exception(f'Invalid input {e}')
 
     while 1:
         # Reset variables
         available_rides_list = []
 
         # Sync local ride info with server
-        for location_id in tqdm(constants.VALID_LOCATION_IDS[EXAMINATION_TYPE], desc='Updating local database', unit='id', leave=False):
+        for location_id in tqdm(constants.valid_location_ids[EXAMINATION_TYPE], desc='Updating local database', unit='id', leave=False):
             for _ in range(10):
                 try:
                     available_rides_list.extend(helpers.strip_useless_info(
-                        trafikverket_api.get_available_dates(location_id, extended_information=True)))
+                        trafikverket_api.get_available_dates(
+                            location_id,
+                            extended_information=True,
+                        )
+                    ))
                     break
                 except Exception as e:
-                    error = e
-                    pass
+                    logger.error(
+                        f'Unfixable error occurred with location id: {location_id}\n{e}'
+                    )
                 sleep(2)
-            else:
-                logger.error(
-                    f'Unfixable error occurred with location id: {location_id}\n{error}')
 
         # Update last check time
         last_check_time = time()
@@ -136,11 +137,17 @@ elif EXECUTION_MODE == "Log server changes":
 
         # See if available rides have changed since previous sync
         helpers.inplace_print(
-            f'Database size: {len(available_rides_list)} | Next sync in: {POLLING_FREQUENCY}s | Next available: {next_available_ride["date"]} {next_available_ride["time"]} in {next_available_ride["location"]} ')
+            f'Database size: {len(available_rides_list)} | '
+            f'Next sync in: {POLLING_FREQUENCY}s | '
+            f'Next available: {next_available_ride["date"]} {next_available_ride["time"]} in {next_available_ride["location"]}'
+        )
+
         new_stringified_list = set(
-            helpers.stringify_list(available_rides_list))
-        added_rides = helpers.dictify_list(
-            list(new_stringified_list - old_stringified_list))
+            helpers.stringify_list(available_rides_list)
+        )
+
+        added_rides = map(json.dumps, list(
+            new_stringified_list-old_stringified_list))
         removed_rides = helpers.dictify_list(
             list(old_stringified_list - new_stringified_list))
         old_stringified_list = new_stringified_list
@@ -154,11 +161,13 @@ elif EXECUTION_MODE == "Log server changes":
                     print('\a')
                     sleep(1)
             logger.info(
-                f'\033[92m[Added] {ride["name"]}, {ride["date"]} {ride["time"]} in {ride["location"]} for {ride["cost"]}\033[0m')
+                f'\033[92m[Added] {ride["name"]}, {ride["date"]} {ride["time"]} in {ride["location"]} for {ride["cost"]}\033[0m'
+            )
         for ride in removed_rides:
             # Example: "[Removed] Kunskapsprov B, 2022-01-07 11:15 in Örebro for 325kr"
             logger.info(
-                f'\033[91m[Removed] {ride["name"]}, {ride["date"]} {ride["time"]} in {ride["location"]} for {ride["cost"]}\033[0m')
+                f'\033[91m[Removed] {ride["name"]}, {ride["date"]} {ride["time"]} in {ride["location"]} for {ride["cost"]}\033[0m'
+            )
 
         # Sleep between server request sessions
         for i in range(POLLING_FREQUENCY, 0, -1):
