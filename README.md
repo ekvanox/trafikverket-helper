@@ -7,7 +7,7 @@
 
 This is a script for interacting with the Trafikverket API to retrieve information about available rides for driving examinations. It allows the user to select an examination type and execution mode, then retrieves available rides from the API and displays them in the console.
 
-![Usage example gif](https://github.com/ekvanox/trafikverket-helper/images/usage.gif)
+![Usage example gif](https://github.com/ekvanox/trafikverket-helper/blob/master/images/usage.gif?raw=true)
 
 ## Requirements
 
