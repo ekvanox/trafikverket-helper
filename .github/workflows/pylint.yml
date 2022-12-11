@@ -21,4 +21,4 @@ jobs:
         pip install -r requirements.txt
     - name: Analysing the code with pylint
       run: |
-        pylint $(git ls-files '*.py') --fail-under=7.0 --disable=E0611,R1705 --max-line-length=150 --good-names ('i', 'j', 'f', '_')
+        pylint $(git ls-files '*.py') --fail-under=7.0 --disable=E0611,R1705,C0114 --max-line-length=150 --good-names i,j,f,_,e,r
