@@ -5,5 +5,7 @@
         "requirements.txt",
         "readme.md",
         "helpers.py"
-    ]
+    ],
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true
 }

@@ -20,11 +20,13 @@ logger = output.create_logger(logging_dir='log')
 
 # Ask user to select exam type from a list of choices
 EXAMINATION_TYPE: str = questionary.select(
-    'Select exam type:', choices=["Kunskapsprov", "Körprov"]).ask()
+    'Select exam type:', choices=["Kunskapsprov", "Körprov"]
+).ask()
 
 # Ask user to select execution mode from a list of choices
 EXECUTION_MODE: str = questionary.select(
-    'Select execution mode:', choices=["Sort by date", "Log server changes", "Start web server"]).ask()
+    'Select execution mode:', choices=["Sort by date", "Log server changes", "Start web server"]
+).ask()
 
 # Load configuration
 CONFIG = io.load_config()
@@ -42,7 +44,8 @@ if 'proxy' in CONFIG:
 else:
     # Ask user to select request proxy from a list of choices
     proxy: str = questionary.select(
-        'Select request proxy:', choices=["None", "Fiddler", "TOR"]).ask()
+        'Select request proxy:', choices=["None", "Fiddler", "TOR"]
+    ).ask()
 
     # Set proxy for requests library
     proxy = constants.proxy_select[proxy]
@@ -93,7 +96,8 @@ if EXECUTION_MODE == "Sort by date":
                 break
             except (HTTPStatus, requests.exceptions.RequestException) as e:
                 logger.error(
-                    'Unfixable error occurred with location id: %s\n%s', location_id, e
+                    'Unfixable error occurred with location id: %s\n%s',
+                    location_id, e
                 )
                 # Wait for the specified time before retrying
                 time.sleep(constants.WAIT_TIME)
@@ -158,7 +162,8 @@ elif EXECUTION_MODE == "Log server changes":
                 except (HTTPStatus, requests.exceptions.RequestException) as e:
                     # Log error
                     logger.error(
-                        'Unfixable error occurred with location id: %s\n%s', location_id, e
+                        'Unfixable error occurred with location id: %s\n%s',
+                        location_id, e
                     )
                 # Sleep for specified time before trying again
                 time.sleep(constants.WAIT_TIME)
@@ -202,18 +207,28 @@ elif EXECUTION_MODE == "Log server changes":
             # Example: "[Added] Kunskapsprov B, 2022-01-07 11:15 in Örebro for 325kr"
             logger.info(
                 colored(
-                    f'[Added] {ride["name"]}, {ride["date"]} {ride["time"]} in {ride["location"]} for {ride["cost"]}',
+                    '[Added] %s, %s %s in %s for %s',
                     'green'
-                )
+                ),
+                ride["name"],
+                ride["date"],
+                ride["time"],
+                ride["location"],
+                ride["cost"],
             )
 
         for ride in removed_rides:
             # Example: "[Removed] Kunskapsprov B, 2022-01-07 11:15 in Örebro for 325kr"
             logger.info(
                 colored(
-                    f'[Removed] {ride["name"]}, {ride["date"]} {ride["time"]} in {ride["location"]} for {ride["cost"]}',
+                    '[Removed] %s, %s %s in %s for %s',
                     'red'
-                )
+                ),
+                ride["name"],
+                ride["date"],
+                ride["time"],
+                ride["location"],
+                ride["cost"],
             )
 
         # Update countdown timer until next update
