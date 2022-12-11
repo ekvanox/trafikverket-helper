@@ -1,6 +1,7 @@
 {
     "conventionalCommits.scopes": [
         "main.py",
-        "api.py"
+        "api.py",
+        "requirements.txt"
     ]
 }
