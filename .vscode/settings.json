@@ -2,6 +2,7 @@
     "conventionalCommits.scopes": [
         "main.py",
         "api.py",
-        "requirements.txt"
+        "requirements.txt",
+        "readme.md"
     ]
 }
