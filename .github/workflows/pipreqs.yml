@@ -1,4 +1,4 @@
-name: Automatic requirements.txt for Python Projects
+name: pipreqs
 
 on: [push]
 
@@ -7,6 +7,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
-      - name: Automatic requirements.txt for Python Projects
+      - name: Automatic requirements.txt with Python 3.10
 
-        uses: ryan-rozario/pipreqs-action@v2.0.0
+        uses: ekvanox/pipreqs-action@v2.1
