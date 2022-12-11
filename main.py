@@ -2,13 +2,13 @@ import time
 
 import questionary
 import requests
+import urllib3
 from termcolor import colored
 from tqdm import tqdm
 from user_agent import generate_user_agent
-import urllib3
 
-from api.api import TrafikverketAPI
 from api.exceptions import HTTPStatus
+from api.trafikverket import TrafikverketAPI
 from helpers import helpers, io, output
 from variables import constants
 
