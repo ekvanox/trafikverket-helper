@@ -3,6 +3,7 @@
         "main.py",
         "api.py",
         "requirements.txt",
-        "readme.md"
+        "readme.md",
+        "helpers.py"
     ]
 }

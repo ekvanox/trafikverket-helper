@@ -5,32 +5,7 @@ scheduling script. These functions provide utility functionality such as
 converting between different data types, printing text in-place, and
 updating nested dictionaries.
 """
-import json
 import shutil
-
-
-def stringify_list(l: list[dict]) -> list[str]:
-    """Convert a list of dictionaries to strings.
-
-    Args:
-        l: The list of dictionaries to convert to strings.
-
-    Returns:
-        A list of strings representing the input dictionaries.
-    """
-    return [json.dumps(o) for o in l]
-
-
-def dictify_list(l: list[list]) -> list[dict]:
-    """Convert a list of JSON-formatted strings to dictionaries.
-
-    Args:
-        l: The list of JSON-formatted strings to convert to dictionaries.
-
-    Returns:
-        A list of dictionaries representing the input JSON strings.
-    """
-    return [json.loads(o) for o in l]
 
 
 def strip_useless_info(rides: list[dict]) -> list[dict]:
