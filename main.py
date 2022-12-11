@@ -1,47 +1,62 @@
-import json
-from time import sleep, time
+import time
 
 import questionary
 import requests
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
+from termcolor import colored
 from tqdm import tqdm
+from user_agent import generate_user_agent
+import urllib3
 
-import constants
-from api import TrafikverketAPI
+from api.api import TrafikverketAPI
+from api.exceptions import HTTPStatus
 from helpers import helpers, io, output
+from variables import constants
 
-# Disable insecure request warnings
-requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+# Disable warnings for unverified HTTPS requests
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+# Create the logger and save them in the log directory
 logger = output.create_logger(logging_dir='log')
 
-
-# User selection
+# Ask user to select exam type from a list of choices
 EXAMINATION_TYPE: str = questionary.select(
     'Select exam type:', choices=["Kunskapsprov", "Körprov"]).ask()
+
+# Ask user to select execution mode from a list of choices
 EXECUTION_MODE: str = questionary.select(
     'Select execution mode:', choices=["Sort by date", "Log server changes", "Start web server"]).ask()
 
+# Load configuration
 CONFIG = io.load_config()
 
+# If proxy is defined in the configuration
 if 'proxy' in CONFIG:
+    # Retrieve proxy configuration
     proxy_config = CONFIG['proxy']
+    # Format proxy for requests library
     proxy = helpers.create_requests_proxy(
         host=proxy_config['host'],
         port=proxy_config['port'],
         protocol=proxy_config.get('protocol', 'http'),
     )
 else:
+    # Ask user to select request proxy from a list of choices
     proxy: str = questionary.select(
         'Select request proxy:', choices=["None", "Fiddler", "TOR"]).ask()
 
     # Set proxy for requests library
     proxy = constants.proxy_select[proxy]
 
+# Generate a random user agent
+useragent = generate_user_agent()
+
+# Load valid location ids
+valid_location_ids = io.load_location_ids()
+
 # Load class into object
 trafikverket_api = TrafikverketAPI(
     cookies=constants.cookies,
-    useragent=constants.useragent,
+    useragent=useragent,
     proxy=proxy,
     ssn=CONFIG['swedish_ssn'],
     examination_type_id=constants.examination_dict[EXAMINATION_TYPE],
@@ -49,22 +64,19 @@ trafikverket_api = TrafikverketAPI(
 
 # Select execution mode
 if EXECUTION_MODE == "Sort by date":
-    # Reset variables
+    # Reset the list of available rides
     available_rides_list = []
 
-    # Sync local ride info with server
+    # Loop through all valid location IDs for the selected examination type
     for location_id in tqdm(
-        constants.valid_location_ids[EXAMINATION_TYPE],
+        valid_location_ids[EXAMINATION_TYPE],
         desc='Updating local database',
         unit='id',
         leave=False,
     ):
-        # Set the maximum number of attempts to retrieve the available rides
-        MAX_ATTEMPTS = 10
-        WAIT_TIME = 2
 
         # Try to retrieve the available rides up to the maximum number of attempts
-        for attempt in range(MAX_ATTEMPTS):
+        for attempt in range(constants.MAX_ATTEMPTS):
             try:
                 # Get the available rides from the API
                 available_rides = helpers.strip_useless_info(
@@ -79,42 +91,63 @@ if EXECUTION_MODE == "Sort by date":
 
                 # Stop trying if the available rides were successfully retrieved
                 break
-            except Exception as e:
-                logger.exception(
+            except (HTTPStatus, requests.exceptions.RequestException) as e:
+                logger.error(
                     'Unfixable error occurred with location id: %s\n%s', location_id, e
                 )
                 # Wait for the specified time before retrying
-                sleep(WAIT_TIME)
+                time.sleep(constants.WAIT_TIME)
 
-    # Sort by date
-    for ride in sorted(available_rides_list, key=lambda x: (x['date'], x['time']), reverse=True):
+    # Sort the avaliable rides based on the date and time
+    available_rides_list.sort(
+        key=lambda x: (x['date'], x['time']),
+        reverse=True
+    )
+
+    # Display all the available rides
+    for ride in available_rides_list:
         logger.info(
-            f'{ride["name"]}, {ride["date"]} {ride["time"]} in {ride["location"]} for {ride["cost"]}'
+            '%s, %s %s in %s for %s',
+            ride["name"],
+            ride["date"],
+            ride["time"],
+            ride["location"],
+            ride["cost"]
         )
 
+    # Show the total amount of rides found
     logger.info(
-        f'Total: {len(available_rides_list)}'
+        'Total: %s', len(available_rides_list)
     )
 
 elif EXECUTION_MODE == "Log server changes":
-    old_stringified_list = set([])
+    # Set of ride information dictionaries
+    last_available_rides = set([])
 
     while 1:
+        # Ask user to input polling frequency
         try:
-            POLLING_FREQUENCY: int = int(questionary.text(
-                'Enter polling frequency:', default="60").ask())
+            POLLING_FREQUENCY = int(questionary.text(
+                'Enter polling frequency:', default='300').ask())
             break
-        except Exception as e:
-            logger.exception(f'Invalid input {e}')
+        except ValueError as e:
+            # Log input error
+            logger.exception('Invalid input: %s', e)
 
     while 1:
-        # Reset variables
+        # List to store ride information dictionaries
         available_rides_list = []
 
-        # Sync local ride info with server
-        for location_id in tqdm(constants.valid_location_ids[EXAMINATION_TYPE], desc='Updating local database', unit='id', leave=False):
-            for _ in range(10):
+        # Retrieve list of valid location IDs for the examination type
+        for location_id in tqdm(
+            valid_location_ids[EXAMINATION_TYPE],
+            desc='Updating local database',
+            unit='id',
+            leave=False
+        ):
+            for _ in range(constants.MAX_ATTEMPTS):
                 try:
+                    # Retrieve available dates from server and add to list, stripping unnecessary information
                     available_rides_list.extend(helpers.strip_useless_info(
                         trafikverket_api.get_available_dates(
                             location_id,
@@ -122,58 +155,77 @@ elif EXECUTION_MODE == "Log server changes":
                         )
                     ))
                     break
-                except Exception as e:
+                except (HTTPStatus, requests.exceptions.RequestException) as e:
+                    # Log error
                     logger.error(
-                        f'Unfixable error occurred with location id: {location_id}\n{e}'
+                        'Unfixable error occurred with location id: %s\n%s', location_id, e
                     )
-                sleep(2)
+                # Sleep for specified time before trying again
+                time.sleep(constants.WAIT_TIME)
 
         # Update last check time
-        last_check_time = time()
+        last_check_time = time.time()
 
-        # Next available date
+        # Sort the list of ride information dictionaries by date and time
         next_available_ride = sorted(
-            available_rides_list, key=lambda x: (x['date'], x['time']))[0]
+            available_rides_list,
+            key=lambda x: (x['date'], x['time'])
+        )[0]
 
-        # See if available rides have changed since previous sync
+        # Print current information to console
         helpers.inplace_print(
             f'Database size: {len(available_rides_list)} | '
             f'Next sync in: {POLLING_FREQUENCY}s | '
             f'Next available: {next_available_ride["date"]} {next_available_ride["time"]} in {next_available_ride["location"]}'
         )
 
-        new_stringified_list = set(
-            helpers.stringify_list(available_rides_list)
-        )
+        # Convert the list of dictionaries into a set
+        available_rides = {tuple(d.items()) for d in available_rides_list}
 
-        added_rides = map(json.dumps, list(
-            new_stringified_list-old_stringified_list))
-        removed_rides = helpers.dictify_list(
-            list(old_stringified_list - new_stringified_list))
-        old_stringified_list = new_stringified_list
+        # Find the difference between available rides and last available rides
+        added_rides = available_rides.difference(last_available_rides)
+        # Convert tuples back to dictionaries
+        added_rides = (dict(v) for v in added_rides)
+
+        # Find the difference between last available rides and available rides
+        removed_rides = last_available_rides.difference(available_rides)
+        # Convert tuples back to dictionaries
+        removed_rides = (dict(v) for v in removed_rides)
+
+        # Update last available rides
+        last_available_rides = available_rides
+        # Hide the in-place print output
         helpers.hide_print()
 
-        # Print server client diff
+        # Print added rides to console
         for ride in added_rides:
             # Example: "[Added] Kunskapsprov B, 2022-01-07 11:15 in Örebro for 325kr"
-            if ride["location"] == 'Karlskrona' and "2021-08-" in ride["date"]:
-                for i in range(100):
-                    print('\a')
-                    sleep(1)
             logger.info(
-                f'\033[92m[Added] {ride["name"]}, {ride["date"]} {ride["time"]} in {ride["location"]} for {ride["cost"]}\033[0m'
+                colored(
+                    f'[Added] {ride["name"]}, {ride["date"]} {ride["time"]} in {ride["location"]} for {ride["cost"]}',
+                    'green'
+                )
             )
+
         for ride in removed_rides:
             # Example: "[Removed] Kunskapsprov B, 2022-01-07 11:15 in Örebro for 325kr"
             logger.info(
-                f'\033[91m[Removed] {ride["name"]}, {ride["date"]} {ride["time"]} in {ride["location"]} for {ride["cost"]}\033[0m'
+                colored(
+                    f'[Removed] {ride["name"]}, {ride["date"]} {ride["time"]} in {ride["location"]} for {ride["cost"]}',
+                    'red'
+                )
             )
 
-        # Sleep between server request sessions
+        # Update countdown timer until next update
         for i in range(POLLING_FREQUENCY, 0, -1):
             helpers.inplace_print(
-                f'Database size: {len(available_rides_list)} | Next sync in: {i}s | Next available: {next_available_ride["date"]} {next_available_ride["time"]} in {next_available_ride["location"]} ')
-            sleep(1)
+                f'Database size: {len(available_rides_list)} | '
+                f'Next sync in: {i}s | '
+                f'Next available: {next_available_ride["date"]} {next_available_ride["time"]} in {next_available_ride["location"]}'
+            )
+            time.sleep(1)
+
+        # Hide the in-place print output
         helpers.hide_print()
 else:
     raise NotImplementedError

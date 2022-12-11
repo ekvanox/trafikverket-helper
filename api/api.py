@@ -1,4 +1,5 @@
 import requests
+from api import exceptions
 
 
 class TrafikverketAPI:
@@ -122,7 +123,7 @@ class TrafikverketAPI:
             the available dates.
 
         Raises:
-            Exception: If the server returns an unexpected response code.
+            HTTPStatus: If the server returns an unexpected response code.
         """
         # Update location ID from default params
         params = self.default_params
@@ -152,4 +153,4 @@ class TrafikverketAPI:
             else:
                 return dates_found
         else:
-            raise Exception('Unexpected server response code')
+            raise exceptions.HTTPStatus(r.status_code)

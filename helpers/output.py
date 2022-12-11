@@ -1,7 +1,6 @@
 import coloredlogs
 import duallog
 import logging
-import questionary
 import verboselogs
 
 

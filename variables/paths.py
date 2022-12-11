@@ -6,3 +6,4 @@ project_directory = Path(__file__).parent.parent
 
 # Create Path objects representing the file paths
 config_file = working_directory / 'config.json'
+valid_locations_path = project_directory / 'data' / 'valid_locations.json'

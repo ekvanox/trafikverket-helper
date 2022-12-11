@@ -135,3 +135,7 @@ def update_config(data: dict) -> None:
 
     # Write the updated configuration to the file
     safe_write(data, paths.config_file)
+
+
+def load_location_ids() -> dict:
+    return safe_json_load(paths.valid_locations_path, default_value={})
