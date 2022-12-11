@@ -10,3 +10,6 @@ jobs:
       - name: Automatic requirements.txt with Python 3.10
 
         uses: ekvanox/pipreqs-action@v2.1.2
+
+        with:
+          COMMIT_MESSAGE: "docs(requirements.txt): :memo: update requirements file"
