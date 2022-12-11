@@ -1,4 +1,4 @@
-# Trafikverket API
+# Trafikverket Helper
 
 [![Version](https://img.shields.io/github/v/release/ekvanox/trafikverket-helper)](https://img.shields.io/github/v/release/ekvanox/trafikverket-helper)
 ![GitHub repo size](https://img.shields.io/github/repo-size/ekvanox/trafikverket-helper)
