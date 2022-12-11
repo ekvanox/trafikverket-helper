@@ -1,6 +1,13 @@
 # Trafikverket API
 
+[![Version](https://img.shields.io/github/v/release/ekvanox/trafikverket-helper)](https://img.shields.io/github/v/release/ekvanox/trafikverket-helper)
+![GitHub repo size](https://img.shields.io/github/repo-size/ekvanox/trafikverket-helper)
+[![CodeFactor](https://www.codefactor.io/repository/github/ekvanox/trafikverket-helper/badge)](https://www.codefactor.io/repository/github/ekvanox/trafikverket-helper)
+![License](https://img.shields.io/github/license/ekvanox/trafikverket-helper)
+
 This is a script for interacting with the Trafikverket API to retrieve information about available rides for driving examinations. It allows the user to select an examination type and execution mode, then retrieves available rides from the API and displays them in the console.
+
+![Usage example gif](https://github.com/ekvanox/trafikverket-helper/images/usage.gif)
 
 ## Requirements
 
