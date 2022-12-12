@@ -9,7 +9,7 @@ jobs:
       - uses: actions/checkout@master
       - name: Automatic requirements.txt with Python 3.10
 
-        uses: ekvanox/pipreqs-action@v2.1.5
+        uses: ekvanox/pipreqs-action@v2.2
 
         with:
           COMMIT_MESSAGE: "docs(requirements.txt): :memo: update requirements file"
