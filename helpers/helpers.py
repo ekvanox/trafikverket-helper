@@ -30,7 +30,7 @@ def strip_useless_info(rides: list[dict]) -> list[dict]:
     } for ride in rides]
 
 
-def inplace_print(s: str) -> None:
+def inplace_print(output: str) -> None:
     """Print a string in-place.
 
     This function prints a string to the console and overwrites the current
@@ -39,7 +39,7 @@ def inplace_print(s: str) -> None:
     Args:
         s: The string to print.
     """
-    print(s, end="\r", flush=True)
+    print(output, end="\r", flush=True)
 
 
 def hide_print(terminal_width: int = None) -> None:

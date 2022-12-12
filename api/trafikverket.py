@@ -3,13 +3,26 @@ from api import exceptions
 
 
 class TrafikverketAPI:
+    """A class for interfacing with the Trafikverket API.
+
+    This class provides methods for making API calls to the Trafikverket API and
+    retrieving information about available examination dates and booking
+    appointments.
+
+    Attributes:
+        proxy: A dictionary containing the proxy settings for the session.
+        session: A `requests.Session` object for making API calls.
+        default_params: A dictionary containing the default parameters for the API calls.
+
+    """
+
     def __init__(
         self,
         cookies,
         proxy: dict,
         useragent: str,
         ssn: str,
-        licence_ID: int = 5,
+        licence_id: int = 5,
         booking_mode_id: int = 0,
         ignore_debt: bool = False,
         ignore_booking_hindrance: bool = False,
@@ -62,7 +75,7 @@ class TrafikverketAPI:
         self.default_params = {
             "bookingSession": {
                 "socialSecurityNumber": ssn,
-                "licenceId": licence_ID,
+                "licenceId": licence_id,
                 "bookingModeId": booking_mode_id,
                 "ignoreDebt": ignore_debt,
                 "ignoreBookingHindrance": ignore_booking_hindrance,

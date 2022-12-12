@@ -138,4 +138,9 @@ def update_config(data: dict) -> None:
 
 
 def load_location_ids() -> dict:
+    """Load valid location IDs from a file.
+
+    Returns:
+        dict: A dictionary containing the valid location IDs for each examination type.
+    """
     return safe_json_load(paths.valid_locations_path, default_value={})

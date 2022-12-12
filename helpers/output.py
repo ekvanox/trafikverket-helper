@@ -1,6 +1,7 @@
+import logging
+
 import coloredlogs
 import duallog
-import logging
 import verboselogs
 
 
