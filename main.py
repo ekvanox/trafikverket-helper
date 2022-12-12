@@ -1,3 +1,4 @@
+import datetime
 import time
 
 import questionary
@@ -132,7 +133,8 @@ elif EXECUTION_MODE == "Log server changes":
         # Ask user to input polling frequency
         try:
             POLLING_FREQUENCY = int(questionary.text(
-                'Enter polling frequency:', default='300').ask())
+                'Enter polling frequency:', default='600'
+            ).ask())
             break
         except ValueError as e:
             # Log input error
@@ -180,7 +182,7 @@ elif EXECUTION_MODE == "Log server changes":
         # Print current information to console
         helpers.inplace_print(
             f'Database size: {len(available_rides_list)} | '
-            f'Next sync in: {POLLING_FREQUENCY}s | '
+            f'Next sync: {datetime.timedelta(seconds=POLLING_FREQUENCY)} | '
             f'Next available: {next_available_ride["date"]} {next_available_ride["time"]} in {next_available_ride["location"]}'
         )
 
@@ -235,7 +237,7 @@ elif EXECUTION_MODE == "Log server changes":
         for i in range(POLLING_FREQUENCY, 0, -1):
             helpers.inplace_print(
                 f'Database size: {len(available_rides_list)} | '
-                f'Next sync in: {i}s | '
+                f'Next sync: {datetime.timedelta(seconds=i)} | '
                 f'Next available: {next_available_ride["date"]} {next_available_ride["time"]} in {next_available_ride["location"]}'
             )
             time.sleep(1)
