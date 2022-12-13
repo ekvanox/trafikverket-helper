@@ -37,27 +37,16 @@ def create_logger(name=None, logging_dir=None) -> logging.Logger:
     # Initialize verbose logger
     logger = verboselogs.VerboseLogger(name)
 
-    # Add file handler to logger
-    log_file = os.path.join(logging_dir, f"{int(time.time())}.log")
-    file_handler = logging.FileHandler(log_file)
-    logger.addHandler(file_handler)
-
-    # Set log level for file handler
-    file_handler.setLevel(logging.DEBUG)
+    # Check if the /log directory exists
+    if not os.path.isdir(logging_dir):
+        # If the /log directory does not exist, create it
+        os.mkdir(logging_dir)
 
     # Format log messages to include date and time
     if name:
         fmt = f"[%(levelname)s][{name}] %(asctime)s: %(message)s"
     else:
         fmt = "[%(levelname)s] %(asctime)s: %(message)s"
-
-    # Create formatter and set it for the file handler
-    formatter = logging.Formatter(fmt)
-    file_handler.setFormatter(formatter)
-
-    # Filter out all colors from the output
-    color_filter = RemoveColorFilter()
-    file_handler.addFilter(color_filter)
 
     # Setup logging
     coloredlogs.install(
@@ -81,5 +70,21 @@ def create_logger(name=None, logging_dir=None) -> logging.Logger:
         },
         isatty=True,
     )
+
+    # Add file handler to logger
+    log_file = os.path.join(logging_dir, f"{int(time.time())}.log")
+    file_handler = logging.FileHandler(log_file)
+    logger.addHandler(file_handler)
+
+    # Create formatter and set it for the file handler
+    formatter = logging.Formatter(fmt)
+    file_handler.setFormatter(formatter)
+
+    # Filter out all colors from the output
+    color_filter = RemoveColorFilter()
+    file_handler.addFilter(color_filter)
+
+    # Set log level for file handler
+    file_handler.setLevel(logging.DEBUG)
 
     return logger

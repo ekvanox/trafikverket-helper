@@ -11,13 +11,13 @@ from user_agent import generate_user_agent
 from api.exceptions import HTTPStatus
 from api.trafikverket import TrafikverketAPI
 from helpers import helpers, io, output
-from variables import constants
+from variables import constants, paths
 
 # Disable warnings for unverified HTTPS requests
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Create the logger and save them in the log directory
-logger = output.create_logger(logging_dir='log')
+logger = output.create_logger(logging_dir=paths.logging_directory)
 
 # Ask user to select exam type from a list of choices
 EXAMINATION_TYPE: str = questionary.select(
