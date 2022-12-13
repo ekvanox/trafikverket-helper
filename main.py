@@ -133,7 +133,7 @@ elif EXECUTION_MODE == "Log server changes":
         # Ask user to input polling frequency
         try:
             POLLING_FREQUENCY = int(questionary.text(
-                'Enter polling frequency:', default='600'
+                'Enter polling frequency:', default='1200'
             ).ask())
             break
         except ValueError as e:
